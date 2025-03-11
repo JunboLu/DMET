@@ -19,7 +19,7 @@ from pyscf import df
 import scipy.linalg
 
 def lowdin(s):
-    ''' new basis is |mu> c^{lowdin}_{mu i} '''
+
     e, v = scipy.linalg.eigh(s)
     idx = e > 1e-15
     return np.dot(v[:,idx]/np.sqrt(e[idx]), v[:,idx].conj().T)
@@ -42,9 +42,6 @@ def read_sa_info(fname):
     return statelis
 
 def get_dmet_as_props(mf,imp_inds,lo_meth='lowdin',thres=1e-13):
-    """
-    Returns C(AO->AS), entropy loss, and orbital composition
-    """
     s = mf.get_ovlp()
     caolo, cloao = lowdin.caolo(s), lowdin.cloao(s)
     env_inds = [x for x in range(s.shape[0]) if x not in imp_inds]
@@ -95,9 +92,6 @@ def get_dmet_as_props(mf,imp_inds,lo_meth='lowdin',thres=1e-13):
         return caoas, entr - ent, asorbs
 
 def get_dmet_imp_ldm(mf,imp_inds,caoas,asorbs,lo_meth='lowdin'):
-    """
-    Returns better initial guess than '1e' for impurity
-    """
     s = mf.get_ovlp()
     nimp = s.shape[0]-np.sum(asorbs)
     act_inds = [*list(range(nimp)),*list(range(nimp+asorbs[0],nimp+asorbs[0]+asorbs[1]))]
@@ -115,10 +109,8 @@ def get_dmet_imp_ldm(mf,imp_inds,caoas,asorbs,lo_meth='lowdin'):
     return ldm
 
 def get_as_1e_ints(mf,caoas,asorbs):
-    # hcore from mf
     hcore = mf.get_hcore()
 
-    # HF J/K from env UO
     uos = hcore.shape[0]-asorbs[-1]
 
     if ( int(mf.mol.nelectron - asorbs[-1]*2) == mf.mol.nelectron ):
@@ -133,13 +125,9 @@ def get_as_1e_ints(mf,caoas,asorbs):
         energy_core += np.einsum('ij,ji', core_dm, corevhf).real * .5
 
     dm_uo = caoas[:,uos:] @ caoas[:,uos:].conj().T*2
-    #print (core_dm)
-    #print (dm_uo)
     vj, vk = mf.get_jk(dm=dm_uo)
 
     fock = hcore + vj - 0.5 * vk 
-
-    #fock = hcore + corevhf
 
     nimp = hcore.shape[0]-np.sum(asorbs)
     act_inds = [*list(range(nimp)),*list(range(nimp+asorbs[0],nimp+asorbs[0]+asorbs[1]))]
@@ -166,9 +154,6 @@ def get_as_2e_ints(mf,caoas,asorbs,density_fit=False):
     return asints2e 
 
 def kernel(ssdmet,imp_inds,imp_solver,imp_solver_soc,statelis=None,thres=1e-13):
-    """
-    Driver function for SSDMET
-    """
 
     mf = ssdmet.mf
 
@@ -199,7 +184,6 @@ def kernel(ssdmet,imp_inds,imp_solver,imp_solver_soc,statelis=None,thres=1e-13):
     nimp = caoas.shape[0]-np.sum(asorbs)
     act_inds = [*list(range(nimp)),*list(range(nimp+asorbs[0],nimp+asorbs[0]+asorbs[1]))]
 
-    # Call pre-SOC impurity solver
     if imp_solver is None:
         pass
 
@@ -238,8 +222,6 @@ def kernel(ssdmet,imp_inds,imp_solver,imp_solver_soc,statelis=None,thres=1e-13):
         else:
             solver = mcscfsol.sacasscf_load_chk(lib.StreamObject(),caschk_fname)
 
-
-    # Call SOC impurity solver
     if imp_solver_soc is None:
         pass
 
